@@ -18,42 +18,6 @@ shared world map, and a C++ coordinator detects frontiers on that shared map and
 
 ---
 
-## Table of contents
-
-1. [Highlights](#highlights)
-2. [System architecture](#system-architecture)
-3. [Methods](#methods)
-4. [Tech stack](#tech-stack)
-5. [Repository structure](#repository-structure)
-6. [ROS 2 interfaces](#ros-2-interfaces)
-7. [Getting started](#getting-started)
-8. [Running the system](#running-the-system)
-9. [Reproducing the experiments](#reproducing-the-experiments)
-10. [Configuration](#configuration)
-11. [Results](#results)
-12. [Design decisions](#design-decisions)
-13. [Limitations and future work](#limitations-and-future-work)
-14. [Acknowledgements and license](#acknowledgements-and-license)
-
----
-
-## Highlights
-
-- **Unity as the simulator, ROS 2 as the robot software.** Unity simulates the apartment, the LiDAR,
-  odometry and differential drive. ROS 2 Jazzy (Ubuntu VM) runs everything else, connected through rosbridge.
-- **Two fully namespaced robots** (`/robot1`, `/robot2`) sharing one TF tree, each with its own
-  `slam_toolbox` and Nav2 stack.
-- **Custom C++ map merger** for known initial poses: TF-based, metrically correct, axis-aligned with the
-  world frame (works with `slam_toolbox`'s growing, moving map origins).
-- **Custom C++ coordinated frontier explorer:** frontier detection, BFS path costs, utility-based
-  global-greedy task allocation with spatial separation, live re-planning when a teammate has already
-  explored a frontier, per-robot failure handling and automatic termination.
-- **Built-in evaluation:** metrics logged to CSV, maps saved in the Nav2 `map_server` format, and a
-  ready-made comparison of 1 robot vs. 2 uncoordinated vs. 2 coordinated robots.
-- **Tested:** the core algorithms are ROS-independent C++ libraries with GoogleTest unit tests.
-
----
-
 ## System architecture
 
 ```mermaid
@@ -425,56 +389,9 @@ Most behaviour is tuned in `ros2/src/mrm_bringup/config/` without rebuilding.
 
 ---
 
-## Results
-
-Apartment scene, two TurtleBot3 Burgers, rosbridge transport. Fill in from each run's `summary.txt`.
-
-| Configuration | Time to complete (s) | Explored area (m²) | Distance driven (m) |
-|---|---|---|---|
-| 1 robot | – | – | – |
-| 2 robots, uncoordinated | – | – | – |
-| 2 robots, coordinated | – | – | – |
-
-<p align="center">
-  <img src="docs/images/exploration_comparison.png" width="640" alt="Explored area over time">
-  <img src="docs/images/merged_map.png" width="320" alt="Final merged map">
-</p>
-
----
-
-## Design decisions
-
-- **Own map merger instead of `multirobot_map_merge`.** Its known-pose mode ignores each map's origin and
-  treats metric offsets as pixels, which breaks with `slam_toolbox`'s growing maps. A TF-based merger is
-  short, metrically correct and keeps the merged map aligned with `world`, which the explorer and Nav2 rely on.
-- **Planning on the merged map.** Each robot's global costmap uses the shared `/map`, so the robots plan
-  with the team's knowledge, not only their own.
-- **Algorithms separated from ROS plumbing.** Frontier detection and map I/O are plain C++ libraries with
-  unit tests; the ROS node only handles topics, TF, actions and timing.
-- **Robust to a loaded machine.** Generous action and transform timeouts, lifecycle bond monitoring
-  disabled (a stalled VM must not reset SLAM and erase the map), latched maps, and per-robot rather than
-  global failure blacklisting.
-- **Own Nav2 launch instead of `nav2_bringup`.** The stock launch remaps `/tf` into each namespace; this
-  system uses one global TF tree with prefixed frames, and starts only the four servers it needs.
-
----
-
-## Limitations and future work
-
-- **Ground-truth odometry:** add odometry noise in Unity and re-enable scan matching and loop closure to
-  evaluate the pipeline under realistic drift.
-- **Known initial poses:** extend the merger to estimate relative poses (feature matching or rendezvous) for
-  robots with unknown start positions.
-- **Transport:** rosbridge (JSON) is the throughput bottleneck; a native DDS bridge (e.g. ROS 2 for Unity)
-  would reduce latency.
-- **Allocation:** Hungarian assignment and information-gain utilities for larger teams.
-- **Mixed reality:** stream frontiers and robot intents back into Unity for an XR operator view.
-
----
 
 ## Acknowledgements and license
 
-- Unity–ROS 2 TurtleBot3 base project: [turtlebot3-unity-rossharp](https://github.com/prakash-aryan/turtlebot3-unity-rossharp) by Prakash Aryan (MIT).
 - [ROS#](https://github.com/siemens/ros-sharp), [slam_toolbox](https://github.com/SteveMacenski/slam_toolbox), [Nav2](https://github.com/ros-navigation/navigation2).
 - Exploration approach inspired by frontier-based exploration (Yamauchi, 1997) and coordinated
   multi-robot exploration (Burgard et al., 2005); [m-explore-ros2](https://github.com/robo-friends/m-explore-ros2) served as a reference.
