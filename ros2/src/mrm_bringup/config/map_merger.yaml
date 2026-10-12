@@ -1,0 +1,7 @@
+map_merger:
+  ros__parameters:
+    robots: ["robot1", "robot2"]
+    robot_map_topic: map       # reads /robot1/map, /robot2/map
+    world_frame: world
+    merged_map_topic: /map
+    publish_rate: 1.0          # Hz

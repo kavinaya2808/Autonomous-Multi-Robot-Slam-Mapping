@@ -1,0 +1,31 @@
+# Frontier explorer settings (distances in metres, times in seconds).
+frontier_explorer:
+  ros__parameters:
+    world_frame: world
+    map_topic: /map
+    update_rate: 1.0            # how often to re-detect frontiers and re-decide (Hz)
+
+    # Detection
+    min_frontier_size: 0.4      # ignore frontiers shorter than this (lidar noise)
+    goal_clearance: 0.3         # prefer goal points at least this far from walls
+    free_threshold: 25          # map value < this  = free
+    occupied_threshold: 65      # map value >= this = obstacle
+
+    # Choosing a frontier: score = gain_weight * size - distance_weight * path_length
+    gain_weight: 1.0
+    distance_weight: 1.0
+
+    # Monitoring goals
+    goal_timeout: 60.0          # give up on a goal after this long
+    blacklist_radius: 0.5       # visited spots (everyone) and failed spots (that robot only)
+    frontier_gone_radius: 0.5   # goal's frontier mapped already? -> pick the next one
+    min_goal_distance: 0.5      # ignore frontier cells closer than this to the robot itself
+    visit_grace: 5.0            # after arriving, wait this long for the map to update
+                                # before deciding the spot can't be explored from there
+    separation_radius: 1.5      # skip frontiers this close to another robot's goal
+                                # (about half the lidar range: their views would overlap)
+
+    # Experiments and results (Phase 4)
+    coordinated: true           # false = robots ignore each other's goals (for comparison)
+    save_period: 30.0           # save the merged map every N seconds (plus at the end)
+    # Results go to ~/mrm_ws/exploration_runs/<run_name>/ (run_name is set in the launch file)

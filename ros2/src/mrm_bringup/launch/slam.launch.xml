@@ -1,0 +1,34 @@
+<!--
+  slam_toolbox for ONE robot. Included once per robot by mapping.launch.xml.
+
+  Why namespaces? Both robots run a node called "slam_toolbox"; putting each in
+  its own namespace (/robot1, /robot2) keeps names unique.
+
+  Why set frames and topics explicitly? slam_toolbox defaults to the absolute
+  names /scan and /map, which a namespace does NOT change. Without this both
+  robots would read and write the same topics.
+-->
+<launch>
+  <arg name="robot" description="Robot namespace, e.g. robot1"/>
+  <arg name="use_sim_time" default="true"/>
+  <arg name="params_file" default="$(find-pkg-share mrm_bringup)/config/slam_toolbox.yaml"/>
+
+  <node pkg="slam_toolbox" exec="async_slam_toolbox_node" name="slam_toolbox"
+        namespace="$(var robot)" output="screen">
+    <!-- Later params override earlier ones: shared file first, then per-robot. -->
+    <param from="$(var params_file)"/>
+    <param name="use_sim_time" value="$(var use_sim_time)"/>
+    <param name="odom_frame" value="$(var robot)/odom"/>
+    <param name="map_frame" value="$(var robot)/map"/>
+    <param name="base_frame" value="$(var robot)/base_footprint"/>
+    <param name="scan_topic" value="/$(var robot)/scan"/>
+    <param name="map_name" value="/$(var robot)/map"/>
+    <param name="use_lifecycle_manager" value="true"/>
+  </node>
+
+  <node pkg="nav2_lifecycle_manager" exec="lifecycle_manager" name="lifecycle_manager_slam"
+        namespace="$(var robot)" output="screen">
+    <param from="$(var params_file)"/>
+    <param name="use_sim_time" value="$(var use_sim_time)"/>
+  </node>
+</launch>

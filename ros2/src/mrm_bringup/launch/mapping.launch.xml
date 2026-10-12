@@ -1,0 +1,52 @@
+<!--
+  Two-robot SLAM + map merging.
+
+    ros2 launch mrm_bringup mapping.launch.xml
+
+  Frame layout:
+    world  =[static, start pose]=>  robotN/map  =[slam_toolbox]=>  robotN/odom
+           =[Unity]=>  robotN/base_footprint  =>  base_link  =>  base_scan
+
+  Start poses come from Scene_01: turtlebot2 is the world origin and
+  turtlebot1 starts 0.5 m to its right (ROS: y = -0.5), same heading.
+  If you move the robots in Unity, update these numbers.
+  Unity -> ROS axes: ros_x = unity_z, ros_y = -unity_x, ros_yaw = -unity_yaw.
+-->
+<launch>
+  <arg name="use_sim_time" default="true"/>
+  <arg name="rviz" default="true"/>
+
+  <arg name="robot1_x" default="4.2"/>
+  <arg name="robot1_y" default="-18.78"/>
+  <arg name="robot1_yaw" default="1.5708"/>
+  <arg name="robot2_x" default="0.0"/>
+  <arg name="robot2_y" default="0.0"/>
+  <arg name="robot2_yaw" default="0.0"/>
+
+  <!-- One SLAM per robot: the same file reused with a different argument. -->
+  <include file="$(find-pkg-share mrm_bringup)/launch/slam.launch.xml">
+    <arg name="robot" value="robot1"/>
+    <arg name="use_sim_time" value="$(var use_sim_time)"/>
+  </include>
+  <include file="$(find-pkg-share mrm_bringup)/launch/slam.launch.xml">
+    <arg name="robot" value="robot2"/>
+    <arg name="use_sim_time" value="$(var use_sim_time)"/>
+  </include>
+
+  <!-- Where each robot's map frame (= its start pose) sits in the shared world. -->
+  <node pkg="tf2_ros" exec="static_transform_publisher" name="world_to_robot1_map"
+        args="--x $(var robot1_x) --y $(var robot1_y) --z 0 --yaw $(var robot1_yaw) --frame-id world --child-frame-id robot1/map"/>
+  <node pkg="tf2_ros" exec="static_transform_publisher" name="world_to_robot2_map"
+        args="--x $(var robot2_x) --y $(var robot2_y) --z 0 --yaw $(var robot2_yaw) --frame-id world --child-frame-id robot2/map"/>
+
+  <!-- Our C++ node. -->
+  <node pkg="mrm_mapping" exec="map_merger" name="map_merger" output="screen">
+    <param from="$(find-pkg-share mrm_bringup)/config/map_merger.yaml"/>
+    <param name="use_sim_time" value="$(var use_sim_time)"/>
+  </node>
+
+  <node pkg="rviz2" exec="rviz2" name="rviz2" if="$(var rviz)"
+        args="-d $(find-pkg-share mrm_bringup)/rviz/mapping.rviz">
+    <param name="use_sim_time" value="$(var use_sim_time)"/>
+  </node>
+</launch>

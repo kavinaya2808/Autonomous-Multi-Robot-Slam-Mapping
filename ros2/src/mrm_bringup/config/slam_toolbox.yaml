@@ -1,0 +1,48 @@
+# Settings shared by every robot's slam_toolbox.
+# "/**/slam_toolbox" matches a node called slam_toolbox in ANY namespace
+# (/robot1/slam_toolbox, /robot2/slam_toolbox). Per-robot frame and topic
+# names are added in launch/slam.launch.xml.
+/**/slam_toolbox:
+  ros__parameters:
+    solver_plugin: solver_plugins::CeresSolver
+    ceres_linear_solver: SPARSE_NORMAL_CHOLESKY
+    ceres_preconditioner: SCHUR_JACOBI
+    ceres_trust_strategy: LEVENBERG_MARQUARDT
+    ceres_dogleg_type: TRADITIONAL_DOGLEG
+    ceres_loss_function: None
+
+    mode: mapping
+    use_map_saver: false            # we save the merged map instead
+    enable_interactive_mode: false  # RViz loop-closure tool off: saves CPU
+    debug_logging: false
+
+    resolution: 0.05                # 5 cm cells
+    max_laser_range: 3.5            # the Unity lidar models an LDS-01 (0.12-3.5 m)
+    map_update_interval: 2.0        # republish the map every 2 s
+    transform_publish_period: 0.05  # publish map->odom at 20 Hz
+    transform_timeout: 0.5          # TF arrives over rosbridge with some delay
+    scan_queue_size: 5              # let scans wait for TF instead of being dropped
+    tf_buffer_duration: 30.0
+    throttle_scans: 1
+    minimum_time_interval: 0.2
+    minimum_travel_distance: 0.2    # small rooms: add scans more often
+    minimum_travel_heading: 0.2
+    stack_size_to_use: 40000000
+
+    # Unity's odometry is ground truth (zero drift), so scan matching can only
+    # ADD error here. Experiment: trust odometry completely. If the maps come
+    # out clean, our whole data pipeline is proven correct. Later we can add
+    # odometry noise in Unity and switch these back on to make it realistic.
+    use_scan_matching: false
+    do_loop_closing: false
+    use_scan_barycenter: true
+    scan_buffer_size: 10
+    loop_search_maximum_distance: 3.0
+
+# slam_toolbox is a *lifecycle* node: it starts "unconfigured" and must be
+# told to configure and activate. Nav2's lifecycle manager does that for us.
+/**/lifecycle_manager_slam:
+  ros__parameters:
+    autostart: true
+    node_names: ["slam_toolbox"]   # relative: resolved inside the same namespace
+    bond_timeout: 0.0

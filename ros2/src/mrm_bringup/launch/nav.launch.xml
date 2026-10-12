@@ -1,0 +1,43 @@
+<!--
+  Nav2 for ONE robot (included once per robot by navigation.launch.xml).
+
+  We start the four servers ourselves instead of using nav2_bringup's
+  navigation_launch.py, because that file remaps /tf to <namespace>/tf, while
+  our Unity robots publish on the global /tf with prefixed frame names.
+  It also lets us skip servers we don't need (smoother, waypoint follower,
+  velocity smoother, collision monitor, docking), which saves CPU in the VM.
+
+  Every node loads the SAME template (config/nav2.yaml) with allow_substs, so
+  $(var robot) inside the YAML becomes robot1 or robot2.
+-->
+<launch>
+  <arg name="robot" description="Robot namespace, e.g. robot1"/>
+  <arg name="use_sim_time" default="true"/>
+  <arg name="params_file" default="$(find-pkg-share mrm_bringup)/config/nav2.yaml"/>
+
+  <node pkg="nav2_controller" exec="controller_server" name="controller_server"
+        namespace="$(var robot)" output="screen">
+    <param from="$(var params_file)" allow_substs="true"/>
+  </node>
+
+  <node pkg="nav2_planner" exec="planner_server" name="planner_server"
+        namespace="$(var robot)" output="screen">
+    <param from="$(var params_file)" allow_substs="true"/>
+  </node>
+
+  <node pkg="nav2_behaviors" exec="behavior_server" name="behavior_server"
+        namespace="$(var robot)" output="screen">
+    <param from="$(var params_file)" allow_substs="true"/>
+  </node>
+
+  <node pkg="nav2_bt_navigator" exec="bt_navigator" name="bt_navigator"
+        namespace="$(var robot)" output="screen">
+    <param from="$(var params_file)" allow_substs="true"/>
+  </node>
+
+  <!-- Configures and activates the four servers above, in order. -->
+  <node pkg="nav2_lifecycle_manager" exec="lifecycle_manager" name="lifecycle_manager_navigation"
+        namespace="$(var robot)" output="screen">
+    <param from="$(var params_file)" allow_substs="true"/>
+  </node>
+</launch>

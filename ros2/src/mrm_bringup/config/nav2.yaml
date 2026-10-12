@@ -1,0 +1,186 @@
+# Nav2 parameters for ONE robot.
+#
+# This file is a TEMPLATE: launch/nav.launch.xml loads it with
+# allow_substs="true", so every $(var robot) / $(var use_sim_time) below is
+# replaced before the YAML is parsed. One file serves robot1 and robot2.
+#
+# Frames:
+#   world                     global planning frame (merged map lives here)
+#   $(var robot)/odom         local, smooth frame for the controller
+#   $(var robot)/base_footprint  the robot itself
+#
+# "/**/name" = a node called <name> in any namespace (e.g. /robot1/controller_server).
+
+# ---------------------------------------------------------------- BT navigator
+# Receives NavigateToPose goals and runs a behavior tree that calls the
+# planner, the controller and recovery behaviors in the right order.
+/**/bt_navigator:
+  ros__parameters:
+    use_sim_time: $(var use_sim_time)
+    global_frame: world
+    robot_base_frame: $(var robot)/base_footprint
+    odom_topic: odom                     # relative: /$(var robot)/odom
+    transform_tolerance: 0.5
+    bt_loop_duration: 10
+    default_server_timeout: 1000         # ms to wait for a server to ACCEPT a goal (default 20 is too tight for a VM)
+    wait_for_service_timeout: 1000
+    action_server_result_timeout: 900.0
+    navigators: ["navigate_to_pose", "navigate_through_poses"]
+    navigate_to_pose:
+      plugin: "nav2_bt_navigator::NavigateToPoseNavigator"
+    navigate_through_poses:
+      plugin: "nav2_bt_navigator::NavigateThroughPosesNavigator"
+    error_code_names: ["compute_path_error_code", "follow_path_error_code"]
+
+# ---------------------------------------------------------------- Planner
+# Global path from the robot to the goal, on the global costmap (merged map).
+/**/planner_server:
+  ros__parameters:
+    use_sim_time: $(var use_sim_time)
+    expected_planner_frequency: 1.0
+    planner_plugins: ["GridBased"]       # name the default behavior tree asks for
+    GridBased:
+      plugin: "nav2_navfn_planner::NavfnPlanner"
+      tolerance: 0.5
+      use_astar: true
+      allow_unknown: true                # plan through unexplored space (needed for exploration)
+
+/**/global_costmap:
+  ros__parameters:
+    use_sim_time: $(var use_sim_time)
+    global_frame: world
+    robot_base_frame: $(var robot)/base_footprint
+    transform_tolerance: 0.5
+    update_frequency: 1.0
+    publish_frequency: 1.0
+    resolution: 0.05
+    robot_radius: 0.11                   # TurtleBot3 Burger
+    track_unknown_space: true
+    always_send_full_costmap: true
+    plugins: ["static_layer", "inflation_layer"]
+    static_layer:
+      plugin: "nav2_costmap_2d::StaticLayer"
+      map_topic: /map                    # the MERGED map: plan with both robots' knowledge
+      map_subscribe_transient_local: true
+    inflation_layer:
+      plugin: "nav2_costmap_2d::InflationLayer"
+      inflation_radius: 0.35
+      cost_scaling_factor: 4.0
+
+# ---------------------------------------------------------------- Controller
+# Follows the global path, ~10 times per second, publishing cmd_vel.
+/**/controller_server:
+  ros__parameters:
+    use_sim_time: $(var use_sim_time)
+    controller_frequency: 5.0            # 0.2 m/s robot: 5 Hz is plenty, and halves the CPU cost
+    enable_stamped_cmd_vel: false        # Unity subscribes to geometry_msgs/Twist
+    min_x_velocity_threshold: 0.001
+    min_y_velocity_threshold: 0.5
+    min_theta_velocity_threshold: 0.001
+    failure_tolerance: 1.0               # tolerate short TF/clock hiccups from rosbridge
+    progress_checker_plugins: ["progress_checker"]
+    goal_checker_plugins: ["general_goal_checker"]
+    controller_plugins: ["FollowPath"]   # name the default behavior tree asks for
+    progress_checker:
+      plugin: "nav2_controller::SimpleProgressChecker"
+      required_movement_radius: 0.3
+      movement_time_allowance: 15.0
+    general_goal_checker:
+      plugin: "nav2_controller::SimpleGoalChecker"
+      stateful: true
+      xy_goal_tolerance: 0.25
+      yaw_goal_tolerance: 0.5
+    FollowPath:
+      # Regulated Pure Pursuit: chase a point a little ahead on the path.
+      # Simple, cheap on CPU, and a good fit for a differential-drive robot.
+      plugin: "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController"
+      desired_linear_vel: 0.2            # Unity caps the Burger at 0.22 m/s
+      lookahead_dist: 0.4
+      min_lookahead_dist: 0.25
+      max_lookahead_dist: 0.6
+      lookahead_time: 1.5
+      use_velocity_scaled_lookahead_dist: false
+      transform_tolerance: 0.5
+      min_approach_linear_velocity: 0.05
+      approach_velocity_scaling_dist: 0.6
+      use_collision_detection: true
+      max_allowed_time_to_collision_up_to_carrot: 1.0
+      use_regulated_linear_velocity_scaling: true
+      use_cost_regulated_linear_velocity_scaling: false
+      regulated_linear_scaling_min_radius: 0.9
+      regulated_linear_scaling_min_speed: 0.1
+      use_rotate_to_heading: true
+      rotate_to_heading_angular_vel: 1.0
+      rotate_to_heading_min_angle: 0.785
+      max_angular_accel: 3.2
+      allow_reversing: false
+
+/**/local_costmap:
+  ros__parameters:
+    use_sim_time: $(var use_sim_time)
+    global_frame: $(var robot)/odom
+    robot_base_frame: $(var robot)/base_footprint
+    transform_tolerance: 0.5
+    rolling_window: true                 # a 3x3 m window that moves with the robot
+    width: 3
+    height: 3
+    resolution: 0.05
+    update_frequency: 3.0
+    publish_frequency: 1.0
+    robot_radius: 0.11
+    always_send_full_costmap: true
+    plugins: ["obstacle_layer", "inflation_layer"]
+    obstacle_layer:
+      plugin: "nav2_costmap_2d::ObstacleLayer"
+      enabled: true
+      observation_sources: scan
+      scan:
+        topic: /$(var robot)/scan        # live lidar: sees the other robot too
+        data_type: "LaserScan"
+        marking: true
+        clearing: true
+        max_obstacle_height: 2.0
+        obstacle_max_range: 3.0
+        obstacle_min_range: 0.0
+        raytrace_max_range: 3.5
+        raytrace_min_range: 0.0
+    inflation_layer:
+      plugin: "nav2_costmap_2d::InflationLayer"
+      inflation_radius: 0.35
+      cost_scaling_factor: 4.0
+
+# ---------------------------------------------------------------- Recoveries
+# Spin / back up / wait when the robot is stuck. The default behavior tree
+# calls the action servers "spin", "backup" and "wait", so the names must match.
+/**/behavior_server:
+  ros__parameters:
+    use_sim_time: $(var use_sim_time)
+    local_costmap_topic: local_costmap/costmap_raw
+    global_costmap_topic: global_costmap/costmap_raw
+    local_footprint_topic: local_costmap/published_footprint
+    global_footprint_topic: global_costmap/published_footprint
+    local_frame: $(var robot)/odom
+    global_frame: world
+    robot_base_frame: $(var robot)/base_footprint
+    transform_tolerance: 0.5
+    enable_stamped_cmd_vel: false
+    cycle_frequency: 10.0
+    behavior_plugins: ["spin", "backup", "wait"]
+    spin:
+      plugin: "nav2_behaviors::Spin"
+    backup:
+      plugin: "nav2_behaviors::BackUp"
+    wait:
+      plugin: "nav2_behaviors::Wait"
+    simulate_ahead_time: 2.0
+    max_rotational_vel: 1.0
+    min_rotational_vel: 0.4
+    rotational_acc_lim: 3.2
+
+# ---------------------------------------------------------------- Lifecycle
+/**/lifecycle_manager_navigation:
+  ros__parameters:
+    use_sim_time: $(var use_sim_time)
+    autostart: true
+    node_names: ["controller_server", "planner_server", "behavior_server", "bt_navigator"]
+    bond_timeout: 0.0                   # generous: a busy VM can delay heartbeats

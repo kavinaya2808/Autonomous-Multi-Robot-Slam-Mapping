@@ -1,0 +1,31 @@
+<!--
+  Frontier detection / exploration. Start AFTER mapping and navigation.
+
+    Only show frontiers (robots don't move):
+      ros2 launch mrm_bringup exploration.launch.xml
+    Explore with both robots, coordinated:
+      ros2 launch mrm_bringup exploration.launch.xml explore:=true run_name:=two_coordinated
+    Comparison runs (restart Unity Play + all launches between runs):
+      ... robots:=robot2 explore:=true run_name:=one_robot
+      ... explore:=true coordinated:=false run_name:=two_uncoordinated
+
+  Results: ~/mrm_ws/exploration_runs/<run_name>/
+    metrics.csv, map.pgm/.yaml (every 30 s), map_final.pgm/.yaml, summary.txt
+  Leave run_name out to get a timestamped folder (run_YYYYmmdd_HHMMSS).
+-->
+<launch>
+  <arg name="robots" default="robot1,robot2" description="Comma-separated robot names"/>
+  <arg name="explore" default="false" description="false = only detect and draw frontiers"/>
+  <arg name="coordinated" default="true" description="false = robots ignore each other's goals"/>
+  <arg name="run_name" default="auto" description="Results folder name (auto = timestamp)"/>
+  <arg name="use_sim_time" default="true"/>
+
+  <node pkg="mrm_exploration" exec="frontier_explorer" name="frontier_explorer" output="screen">
+    <param from="$(find-pkg-share mrm_bringup)/config/exploration.yaml"/>
+    <param name="robots" value="$(var robots)"/>
+    <param name="explore" value="$(var explore)"/>
+    <param name="coordinated" value="$(var coordinated)"/>
+    <param name="run_name" value="$(var run_name)"/>
+    <param name="use_sim_time" value="$(var use_sim_time)"/>
+  </node>
+</launch>

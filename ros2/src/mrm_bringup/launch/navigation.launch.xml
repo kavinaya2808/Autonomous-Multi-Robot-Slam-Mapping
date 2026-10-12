@@ -1,0 +1,21 @@
+<!--
+  Nav2 for both robots. Start AFTER mapping.launch.xml is running:
+
+    T2: ros2 launch mrm_bringup mapping.launch.xml
+    T3: ros2 launch mrm_bringup navigation.launch.xml
+
+  Keeping mapping and navigation in separate launches means each terminal's
+  log stays readable, and you can restart Nav2 without losing the map.
+-->
+<launch>
+  <arg name="use_sim_time" default="true"/>
+
+  <include file="$(find-pkg-share mrm_bringup)/launch/nav.launch.xml">
+    <arg name="robot" value="robot1"/>
+    <arg name="use_sim_time" value="$(var use_sim_time)"/>
+  </include>
+  <include file="$(find-pkg-share mrm_bringup)/launch/nav.launch.xml">
+    <arg name="robot" value="robot2"/>
+    <arg name="use_sim_time" value="$(var use_sim_time)"/>
+  </include>
+</launch>

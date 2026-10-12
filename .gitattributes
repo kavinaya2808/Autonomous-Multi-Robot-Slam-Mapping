@@ -1,0 +1,13 @@
+# Normalize line endings for text; mark binaries so git doesn't mangle them.
+* text=auto
+*.cs   text
+*.yaml text
+*.md   text
+*.json text
+
+*.stl binary
+*.png binary
+*.gif binary
+*.jpg binary
+*.pgm binary
+*.fbx binary
