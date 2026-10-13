@@ -11,6 +11,11 @@ Each robot runs its own SLAM and Nav2 stack in ROS 2; a C++ map merger fuses bot
 shared world map, and a C++ coordinator detects frontiers on that shared map and assigns the robots to
 **different** unexplored regions until the whole apartment is mapped.
 
+<img width="400" height="200" alt="17918478928343454-ezgif com-video-to-gif-converter" src="https://github.com/user-attachments/assets/14175471-d14a-42c1-80da-246cf384c83a" />
+
+<img width="400" height="200" alt="17918478928343453-ezgif com-video-to-gif-converter" src="https://github.com/user-attachments/assets/a68ef5d7-8c66-41ee-8885-a742060ddc33" />
+
+
 <p align="center">
   <img src="docs/images/exploration.gif" width="720" alt="Two robots exploring the apartment (RViz)">
   <br><em>Merged map, frontiers (yellow), frontier targets (green) and each robot's current goal (red / blue).</em>
@@ -81,6 +86,9 @@ world ──(static, known start pose)──▶ robotN/map ──(slam_toolbox)�
   (`use_sim_time: true` everywhere).
 - Transport: ROS# over rosbridge (JSON/WebSocket).
 
+<img width="400" height="210" alt="1791847892834345-ezgif com-video-to-gif-converter" src="https://github.com/user-attachments/assets/ab287888-0818-43cb-805b-732831ab4c0a" />
+
+
 ### 2. Per-robot SLAM
 `slam_toolbox` (online async) runs once per robot, with namespaced frames and topics and managed as a
 lifecycle node. Because the simulator provides drift-free odometry, scan matching and loop closure are
@@ -133,6 +141,9 @@ free robots, mark that robot busy, and continue. The separation rule then pushes
 different region. For two robots this matches the optimal assignment in practice; the Hungarian algorithm
 is the exact alternative for larger teams.
 
+<img width="400" height="170" alt="17918478928343452-ezgif com-video-to-gif-converter" src="https://github.com/user-attachments/assets/8feea1e2-9cfa-4723-8f71-d65af7cf7885" />
+
+
 **Execution and monitoring** (1 Hz loop, asynchronous Nav2 action clients):
 
 | Event | Reaction |
@@ -149,6 +160,8 @@ Each run writes to `~/mrm_ws/exploration_runs/<run_name>/`:
 - `metrics.csv`: time, explored area (m²), number of frontiers, and per-robot distance, goals and failures (1 Hz);
 - `map.pgm/.yaml` every 30 s and `map_final.pgm/.yaml` at completion (Nav2 `map_server` format, atomic writes);
 - `summary.txt`: time to complete, explored area, per-robot statistics.
+
+
 
 ---
 
